@@ -1,0 +1,154 @@
+\documentclass{beamer}
+
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{setspace}
+\usepackage{color}
+\usepackage{listings}
+\usepackage{hyperref}
+\usepackage{graphicx}
+
+\usepackage[scaled]{beramono}
+\newcommand\Small{\fontsize{9}{9.2}\selectfont}
+\newcommand\LSTfont{\Small\ttfamily}
+
+\usetheme{Dresden}
+
+\title{Image Optimization in Rails}
+\author{Constantin Hofstetter}
+\subtitle{For an up-to-date version and discussions see \href{https://github.com/consti/image-optimization-howto}{https://github.com/consti/image-optimization-howto}}
+\date{\today}
+
+\begin{document}
+
+\lstset{ %
+language=Ruby,                % choose the language of the code
+basicstyle=\LSTfont,       % the size of the fonts that are used for the code
+stepnumber=1,                   % the step between two line-numbers. If it is 1 each line will be numbered
+numbersep=5pt,                  % how far the line-numbers are from the code
+backgroundcolor=\color{white},  % choose the background color. You must add \usepackage{color}
+showspaces=false,               % show spaces adding particular underscores
+showstringspaces=false,         % underline spaces within strings
+showtabs=false,                 % show tabs within strings adding particular underscores
+frame=false,           % adds a frame around the code
+tabsize=2,          % sets default tabsize to 2 spaces
+captionpos=b,           % sets the caption-position to bottom
+breaklines=true,        % sets automatic line breaking
+breakatwhitespace=false,    % sets if automatic breaks should only happen at whitespace
+escapeinside={\%*}{*)},          % if you want to add a comment within your code
+keywordstyle=\color{blue},
+stringstyle=\color{red},
+commentstyle=\color{green},
+morecomment=[l][\color{magenta}]{\#}
+}
+
+\begin{frame}
+\titlepage
+\end{frame}
+
+\begin{frame}{Reduce file size of static assets}
+\begin{block}{ImageOptim}
+Reduce image file sizes significantly by using multiple optimization (lossless compression) libraries packaged into one tool.
+Available as:
+\begin{itemize}
+  \item \href{https://imageoptim.com}{GUI Application}
+  \item \href{https://github.com/JamieMason/ImageOptim-CLI}{CLI Application}
+  \item \href{https://github.com/plasticine/middleman-imageoptim}{Extension for Middleman}
+\end{itemize}
+\end{block}
+\begin{block}{ImageAlpha}
+Convert PNG24 images with transparent background to PNG8+alpha images to reduce file size.
+\href{http://pngmini.com/}{Available here}.
+\end{block}
+\end{frame}
+
+\begin{frame}[fragile]{Reduce file size of static assets}
+\begin{block}{ImageOptim CLI as pre-commit hook}
+Automatically optimize images that are committed to your git repo:
+\begin{lstlisting}
+# in your_project/.git/hooks/pre-commit
+images=$(git diff --exit-code --cached --name-only --diff-filter=ACM -- '*.png' '*.jpg')
+$(exit $?) || echo $images | imageoptim && git add $images
+\end{lstlisting}
+\end{block}
+\end{frame}
+
+
+\begin{frame}[fragile]{Paperclip integration}
+\begin{block}{Using \href{http://imagemagick.org/}{\lstinline{imagemagick}} parameters}
+Add options to the \lstinline{convert_options} parameter:
+\begin{itemize}
+  \item \lstinline{strip}: remove EXIF data
+  \item \lstinline{quality PERCENTAGE}: compress image data (not lossless)
+  \item \lstinline{interlace METHOD}: make the image progressive
+\end{itemize}
+Example:
+\begin{lstlisting}
+# In your model
+has_attached_file :avatar, {
+  styles: { thumb: '60x60#' },
+  convert_options: {
+    all: '-strip -quality 70 -interlace Line'
+  }
+}
+\end{lstlisting}
+\end{block}
+\end{frame}
+
+\begin{frame}[fragile]{Paperclip integration}
+\begin{block}{Using \lstinline{paperclip-optimizer} processor}
+The \href{https://github.com/janfoeh/paperclip-optimizer}{\lstline{paperclip-optimizer}} gem uses the \href{https://github.com/toy/image_optim}{\lstinline{image_optim}} library
+instead of \lstinline{imagemagick} to yield better optimization results.
+\end{block}
+\end{frame}
+
+\begin{frame}[fragile]{Paperclip integration}
+\begin{block}{Using \lstinline{paperclip-optimizer} processor}
+\begin{lstlisting}
+# Add paperclip-optimizer gem
+# Install image_optim binaries / image_optim_bin gem (HEROKU)
+has_attached_file :avatar, {
+  styles: {
+    thumb: {
+      geometry: '60x60#',
+      paperclip_optimizer: {
+        # add compression (not lossless) to optimization (lossless)
+        jpegoptim: { max_quality: 70 },
+        # Disable unavailable binaries
+        svgo: false
+      }
+    }
+  },
+  # We still need to strip EXIF and make the image progressive
+  convert_options: { all: '-strip -interlace Line' },
+  processors: [:paperclip_optimizer]
+}
+\end{lstlisting}
+\end{block}
+\end{frame}
+
+\begin{frame}[fragile]{Paperclip integration}
+\begin{block}{\lstinline{paperclip-optimizer}: gotcha}
+If \lstinline{paperclip} does not resize the images to the different styles,
+add a dummy processor that pre-processes the image to the different styles.
+\begin{lstlisting}
+# in lib/paperclip_processors/resizer.rb
+module Paperclip
+  class Resizer < Thumbnail
+    def transformation_command
+      super
+    end
+  end
+end
+\end{lstlisting}
+\begin{lstlisting}
+# in your model
+has_attached_file :avatar, {
+  …
+  processors: [:resizer, :paperclip_optimizer]
+}
+\end{lstlisting}
+\end{block}
+\end{frame}
+
+\end{document}
