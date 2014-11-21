@@ -1,7 +1,7 @@
 image-optimization-howto
 ========================
 
-Image Optimization in Rails How-To / best practices.
+Image Optimization in Rails How-To / best practices. With a focus on static assets and [Paperclip](https://github.com/thoughtbot/paperclip) uploads.
 
 [Download the slides](https://github.com/consti/image-optimization-howto/blob/master/image-optimization-howto.pdf)
 
