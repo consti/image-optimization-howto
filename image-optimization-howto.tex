@@ -46,7 +46,7 @@ morecomment=[l][\color{magenta}]{\#}
 \titlepage
 \end{frame}
 
-\begin{frame}{Reduce file size of static assets}
+\begin{frame}{Reduce file size: Static Assets}
 \begin{block}{ImageOptim}
 Reduce image file sizes significantly by using multiple optimization (lossless compression) libraries packaged into one tool.
 Available as:
@@ -62,7 +62,7 @@ Convert PNG24 images with transparent background to PNG8+alpha images to reduce 
 \end{block}
 \end{frame}
 
-\begin{frame}[fragile]{Reduce file size of static assets}
+\begin{frame}[fragile]{Reduce file size: Static Assets}
 \begin{block}{ImageOptim CLI as pre-commit hook}
 Automatically optimize images that are committed to your git repo:
 \begin{lstlisting}
@@ -74,7 +74,7 @@ $(exit $?) || echo $images | imageoptim && git add $images
 \end{frame}
 
 
-\begin{frame}[fragile]{Paperclip integration}
+\begin{frame}[fragile]{Reduce file size: Paperclip uploads}
 \begin{block}{Using \href{http://imagemagick.org/}{\lstinline{imagemagick}} parameters}
 Add options to the \lstinline{convert_options} parameter:
 \begin{itemize}
@@ -95,14 +95,14 @@ has_attached_file :avatar, {
 \end{block}
 \end{frame}
 
-\begin{frame}[fragile]{Paperclip integration}
+\begin{frame}[fragile]{Reduce file size: Paperclip uploads}
 \begin{block}{Using \lstinline{paperclip-optimizer} processor}
 The \href{https://github.com/janfoeh/paperclip-optimizer}{\lstinline{paperclip-optimizer}} gem uses the \href{https://github.com/toy/image_optim}{\lstinline{image_optim}} library
 instead of \lstinline{imagemagick} to yield better optimization results.
 \end{block}
 \end{frame}
 
-\begin{frame}[fragile]{Paperclip integration}
+\begin{frame}[fragile]{Reduce file size: Paperclip uploads}
 
 Using \lstinline{paperclip-optimizer} processor
 
@@ -128,7 +128,7 @@ has_attached_file :avatar, {
 \end{lstlisting}
 \end{frame}
 
-\begin{frame}[fragile]{Paperclip integration}
+\begin{frame}[fragile]{Reduce file size: Paperclip uploads}
 \begin{block}{Multiple geometries}
 Make sure to include the \lstinline{:thumbnail} processor if you want to save your image in different geometries.
 \begin{lstlisting}
@@ -142,7 +142,7 @@ has_attached_file :avatar, {
 \end{frame}
 
 
-\begin{frame}{Image delivery}
+\begin{frame}{Image delivery: Best practices}
 \begin{block}{Store images on file storage web service}
 Use a file storage web service such as Amazon Simple Storage Service (S3) to store image uploads and static assets.
 \end{block}
@@ -154,7 +154,7 @@ Use \lstinline{Cache-Control} or \lstinline{Expires} headers.
 \end{block}
 \end{frame}
 
-\begin{frame}[fragile]{S3: Paperclip}
+\begin{frame}[fragile]{File storage web service: Paperclip uploads}
 \begin{lstlisting}
 # in your Gemfile
 gem 'aws-sdk'
@@ -179,7 +179,7 @@ production:
 \end{lstlisting}
 \end{frame}
 
-\begin{frame}[fragile]{S3: Static Assets}
+\begin{frame}[fragile]{File storage web service: Static Assets}
 
 Add \lstinline{asset_sync} to your Gemfile.
 
@@ -203,7 +203,7 @@ bundle exec rake assets:precompile RAILS_GROUPS=assets
 \end{frame}
 
 
-\begin{frame}[fragile]{Expiration}
+\begin{frame}[fragile]{Expiration: Best practices}
 \begin{block}{Expires or Cache-Control?}
 Expires is a fixed future date, Cache-Control is the amount of time (in seconds) the client is allowed to cache the object.
 \end{block}
@@ -215,7 +215,7 @@ CloudFront accepts both values \lstinline{Expires} and \lstinline{Cache-Control}
 \end{frame}
 
 
-\begin{frame}[fragile]{Expiration: Paperclip}
+\begin{frame}[fragile]{Expiration: Paperclip uploads}
 \begin{block}{Cache-Control in Paperclip}
 Include \lstinline{Cache-Control} in your \lstinline{s3_headers}-Paperclip config:
 \end{block}
@@ -252,7 +252,7 @@ config.custom_headers = {
 \end{lstlisting}
 \end{frame}
 
-\begin{frame}{Domain Sharding}
+\begin{frame}{Other Optimizations: Domain Sharding}
 Clients have a max-limit of connections to a single host (e.g. modern browsers up to ten connections).
 
 Domain Sharding helps by splitting images and static assets onto different hosts (i.e. domains that point to the same resource).
@@ -263,7 +263,7 @@ Domain Sharding will actually hurt the performance of HTTP 2.0 and SPDY compatib
 \end{block}
 \end{frame}
 
-\begin{frame}[fragile]{Domain Sharding}
+\begin{frame}[fragile]{Other Optimizations: Domain Sharding}
 Create different CloudFront hosts that point to the same S3 bucket (where you store images/static assets).
 \begin{lstlisting}
 # in your app config (e.g. production.rb):
@@ -273,7 +273,7 @@ config.assets.cdn_hosts = %w(xxxxxx01.cloudfront.net
 \end{lstlisting}
 \end{frame}
 
-\begin{frame}[fragile]{Domain Sharding: Paperclip}
+\begin{frame}[fragile]{Domain Sharding: Paperclip uploads}
 We calculate the asset host through the \lstinline{update_at} in seconds of the file (to make sure the file always gets served from the same host).
 \begin{lstlisting}
 # in Paperclip config:
