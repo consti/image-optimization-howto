@@ -97,13 +97,15 @@ has_attached_file :avatar, {
 
 \begin{frame}[fragile]{Paperclip integration}
 \begin{block}{Using \lstinline{paperclip-optimizer} processor}
-The \href{https://github.com/janfoeh/paperclip-optimizer}{\lstline{paperclip-optimizer}} gem uses the \href{https://github.com/toy/image_optim}{\lstinline{image_optim}} library
+The \href{https://github.com/janfoeh/paperclip-optimizer}{\lstinline{paperclip-optimizer}} gem uses the \href{https://github.com/toy/image_optim}{\lstinline{image_optim}} library
 instead of \lstinline{imagemagick} to yield better optimization results.
 \end{block}
 \end{frame}
 
 \begin{frame}[fragile]{Paperclip integration}
-\begin{block}{Using \lstinline{paperclip-optimizer} processor}
+
+Using \lstinline{paperclip-optimizer} processor
+
 \begin{lstlisting}
 # Add paperclip-optimizer gem
 # Install image_optim binaries / image_optim_bin gem (HEROKU)
@@ -124,31 +126,180 @@ has_attached_file :avatar, {
   processors: [:paperclip_optimizer]
 }
 \end{lstlisting}
-\end{block}
 \end{frame}
 
 \begin{frame}[fragile]{Paperclip integration}
-\begin{block}{\lstinline{paperclip-optimizer}: gotcha}
-If \lstinline{paperclip} does not resize the images to the different styles,
-add a dummy processor that pre-processes the image to the different styles.
-\begin{lstlisting}
-# in lib/paperclip_processors/resizer.rb
-module Paperclip
-  class Resizer < Thumbnail
-    def transformation_command
-      super
-    end
-  end
-end
-\end{lstlisting}
+\begin{block}{Multiple geometries}
+Make sure to include the \lstinline{:thumbnail} processor if you want to save your image in different geometries.
 \begin{lstlisting}
 # in your model
 has_attached_file :avatar, {
-  …
-  processors: [:resizer, :paperclip_optimizer]
+  ...
+  processors: [:thumbnail, :paperclip_optimizer]
 }
 \end{lstlisting}
 \end{block}
+\end{frame}
+
+
+\begin{frame}{Image delivery}
+\begin{block}{Store images on file storage web service}
+Use a file storage web service such as Amazon Simple Storage Service (S3) to store image uploads and static assets.
+\end{block}
+\begin{block}{Use a CDN}
+Content Delivery Network: images and static assets are served from the closest edge server, based on the clients location, e.g. Amazon CloudFront
+\end{block}
+\begin{block}{Allow Clients to cache images and static assets}
+Use \lstinline{Cache-Control} or \lstinline{Expires} headers.
+\end{block}
+\end{frame}
+
+\begin{frame}[fragile]{S3: Paperclip}
+\begin{lstlisting}
+# in your Gemfile
+gem 'aws-sdk'
+
+# in your Paperclip config:
+PAPERCLIP_STORAGE_OPTIONS = {
+  :storage => :s3,
+  :s3_host_name => 'REMOVE_THIS_LINE_IF_UNNECESSARY',
+  :s3_credentials => {
+    :bucket => 'S3_BUCKET_NAME'
+  }
+}
+
+# in your aws.yml
+development:
+  access_key_id: AWS_ACCESS_KEY_ID
+  secret_access_key: AWS_SECRET_KEY_ID
+
+production:
+  access_key_id: AWS_ACCESS_KEY_ID
+  secret_access_key: AWS_SECRET_KEY_ID
+\end{lstlisting}
+\end{frame}
+
+\begin{frame}[fragile]{S3: Static Assets}
+
+Add \lstinline{asset_sync} to your Gemfile.
+
+\begin{lstlisting}
+# In your asset_sync.rb
+s3_config = YAML.load_file("#{Rails.root}/config/s3.yml")[Rails.env]
+
+config.aws_access_key_id = s3_config['access_key_id']
+config.aws_secret_access_key = s3_config['secret_access_key']
+config.fog_directory = s3_config['bucket']
+# config.fog_region = 'eu-west-1'
+config.gzip_compression = true
+\end{lstlisting}
+
+Then run:
+
+\begin{lstlisting}
+# RAILS_GROUPS=assets will make asset sync run in verbose mode
+bundle exec rake assets:precompile RAILS_GROUPS=assets
+\end{lstlisting}
+\end{frame}
+
+
+\begin{frame}[fragile]{Expiration}
+\begin{block}{Expires or Cache-Control?}
+Expires is a fixed future date, Cache-Control is the amount of time (in seconds) the client is allowed to cache the object.
+\end{block}
+\begin{block}{Expires or Cache-Control for CloudFront \& S3}
+CloudFront accepts both values \lstinline{Expires} and \lstinline{Cache-Control}. If you specify values both for \lstinline{Cache-Control} and for \lstinline{Expires}, CloudFront uses only the value of \lstinline{Cache-Control}.
+
+\lstinline{Cache-Control} is the recommended way to set expiration.
+\end{block}
+\end{frame}
+
+
+\begin{frame}[fragile]{Expiration: Paperclip}
+\begin{block}{Cache-Control in Paperclip}
+Include \lstinline{Cache-Control} in your \lstinline{s3_headers}-Paperclip config:
+\end{block}
+\begin{lstlisting}
+# in your Paperclip config:
+PAPERCLIP_STORAGE_OPTIONS = {
+  ...,
+  s3_headers: lambda { |_attachment|
+    {
+      'Cache-Control' => "public, max-age=#{ 1.month.to_i }"
+    }
+  }
+}
+\end{lstlisting}
+\end{frame}
+
+
+\begin{frame}[fragile]{Expiration: Static Assets}
+\begin{lstlisting}
+# in your asset_sync.rb
+config.custom_headers = {
+  # for fonts and svg, you have to set Access-Control-Allow-Origin
+  '.*\.[svg|woff|ttf|eot]' => {
+    'Access-Control-Allow-Origin' => '*',
+    cache_control: "public, max-age=#{ 1.month.to_i }",
+    expires: nil
+  },
+  # Everything else, set cache-control to max-age 1 month
+  '.*' => {
+    cache_control: "public, max-age=#{ 1.month.to_i }",
+    expires: nil
+  }
+}
+\end{lstlisting}
+\end{frame}
+
+\begin{frame}{Domain Sharding}
+Clients have a max-limit of connections to a single host (e.g. modern browsers up to ten connections).
+
+Domain Sharding helps by splitting images and static assets onto different hosts (i.e. domains that point to the same resource).
+\begin{block}{SPDY and HTTP 2.0}
+SPDY and HTTP 2.0 (which integrates SPDY) allow clients to keep connections open to stream files.
+
+Domain Sharding will actually hurt the performance of HTTP 2.0 and SPDY compatible browsers (unnecessary domain lookups).
+\end{block}
+\end{frame}
+
+\begin{frame}[fragile]{Domain Sharding}
+Create different CloudFront hosts that point to the same S3 bucket (where you store images/static assets).
+\begin{lstlisting}
+# in your app config (e.g. production.rb):
+config.assets.cdn_hosts = %w(xxxxxx01.cloudfront.net
+                             xxxxxx02.cloudfront.net
+                             xxxxxx03.cloudfront.net)
+\end{lstlisting}
+\end{frame}
+
+\begin{frame}[fragile]{Domain Sharding: Paperclip}
+We calculate the asset host through the \lstinline{update_at} in seconds of the file (to make sure the file always gets served from the same host).
+\begin{lstlisting}
+# in Paperclip config:
+PAPERCLIP_STORAGE_OPTIONS = {
+  ...,
+  s3_host_alias: lambda { |attachment|
+    Rails.configuration.assets.cdn_hosts[
+      attachment.updated_at.to_i % Rails.configuration.assets.cdn_hosts.count
+    ]
+  },
+  url: ':s3_alias_url'
+}
+\end{lstlisting}
+\end{frame}
+
+
+\begin{frame}[fragile]{Domain Sharding: Static Assets}
+We calculate the asset host through the MD5 sum of the file (to make sure the file always gets served from the same host).
+\begin{lstlisting}
+# in your app config (e.g. production.rb):
+config.action_controller.asset_host = Proc.new { |source|
+  'https://' + Rails.configuration.assets.cdn_hosts[
+    Digest::MD5.hexdigest(source).to_i(16) % Rails.configuration.assets.cdn_hosts.count
+  ]
+}
+\end{lstlisting}
 \end{frame}
 
 \end{document}
