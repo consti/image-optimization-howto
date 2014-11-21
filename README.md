@@ -9,6 +9,25 @@ These slides are the result of a Show & Tell at [OOZOU](http://oozou.com/) in Ba
 
 Feel free to [fork](https://github.com/consti/image-optimization-howto/fork), contribute and share!
 
+Content
+=======
+
+* Reduce file size
+  * Static Assets
+  * Paperclip uploads
+* Image delivery
+  * Best practices
+  * File Storage web service
+    * Paperclip uploads
+    * Static Assets
+* Expiration
+  * Best practices
+  * Paperclip uploads
+  * Static Assets
+* Other Optimizations
+  * Domain Sharding
+    * Paperclip uploads
+    * Static Assets
 
 License
 ==========
